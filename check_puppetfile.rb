@@ -6,16 +6,18 @@
 # Usage: ./check_puppetfile.rb [path_to_puppetfile]
 # Example Output
 #
-# NAME     | URL                            | REF                            | VALID_REF?
-# ---------|--------------------------------|--------------------------------|-----------
-# gitlab   | https://github.com/vshn/pup... | 00397b86dfb3487d9df768cbd36... | true
-# r10k     | https://github.com/acidprim... | v3.1.1                         | true
-# gms      | https://github.com/npwalker... | gitlab_disable_ssl_verify_s... | true
-# rbac     | https://github.com/puppetla... | 2f60e1789a721ce83f8df061e13... | true
-# acl      | https://github.com/dobbymoo... | master                         | true
-# deploy   | https://github.com/cudgel/d... | master                         | true
-# dotfiles | https://github.com/cudgel/p... | master1                        | false
-# splunk   | https://github.com/cudgel/s... | master                         | true
+# NAME     | URL                                           | REF                            | STATUS
+# ---------|-----------------------------------------------|--------------------------------|-------
+# splunk   | https://github.com/cudgel/splunk.git          | prod                           | 👍
+# r10k     | https://github.com/acidprime/r10k             | v3.1.1                         | 👍
+# gms      | https://github.com/npwalker/abrader-gms       | gitlab_disable_ssl_verify_s... | 👍
+# rbac     | https://github.com/puppetlabs/pltraining-rbac | 2f60e1789a721ce83f8df061e13... | 👍
+# acl      | https://github.com/dobbymoodge/puppet-acl.git | master                         | 👍
+# deploy   | https://github.com/cudgel/deploy.git          | master                         | 👍
+# dotfiles | https://github.com/cudgel/puppet-dotfiles.git | master                         | 👍
+# gitlab   | https://github.com/vshn/puppet-gitlab         | 00397b86dfb3487d9df768cbd36... | 👍
+#
+# 👍👍 Puppetfile looks good.👍👍
 begin
   require 'tempfile'
   require 'table_print'
@@ -152,27 +154,32 @@ unless File.exist?(puppetfile)
   exit 1
 end
 
-valid_modules = git_modules(puppetfile).map do |mod|
+all_modules = git_modules(puppetfile).map do |mod|
   ref = mod[:args][:ref] || mod[:args][:tag] || mod[:args][:branch]
-  valid = valid_ref?(mod[:args][:git], ref )
+  valid_ref = valid_ref?(mod[:args][:git], ref ) || valid_commit?(mod[:args][:git], mod[:args][:ref])
   {
       name: mod[:name],
       url: mod[:args][:git],
       ref: ref,
-      valid_ref?: valid || valid_commit?(mod[:args][:git], mod[:args][:ref])
+      valid_ref?: valid_ref,
+      status: valid_ref ? "👍" : "😨"
   }
 end
+
 exit_code = 0
-if bad_mods = valid_modules.find_all {|mod| !mod[:valid_ref?]}
-  puts "💩"
+bad_mods = all_modules.find_all {|mod| !mod[:valid_ref?]}.count > 0
+
+if bad_mods
   exit_code = 1
-  tp bad_mods
-  puts "Puppetfile is not valid.".red
-
+  message = "😨😨 " + "Not all modules in the Puppetfile are valid.".red + " 😨😨"
 else
-  tp valid_modules
-  puts "👍👍"
-  puts "Puppetfile looks good.".green
+  message = "👍👍 " + "Puppetfile looks good.".green +  "👍👍"
 end
-exit exit_code
 
+
+
+sorted = all_modules.sort_by {|a| a[:valid_ref?] ? 1 : 0 }
+tp sorted, :name, {url: {:width => 50}}, :ref, :status
+puts ""
+puts message
+exit exit_code

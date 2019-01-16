@@ -34,7 +34,7 @@ mod 'deploy',
 
 mod 'dotfiles',
   :git => 'https://github.com/cudgel/puppet-dotfiles.git',
-  :branch => 'master1'
+  :branch => 'master'
 
 mod 'splunk',
   :git => 'https://github.com/cudgel/splunk.git',
